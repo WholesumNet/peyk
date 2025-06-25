@@ -21,15 +21,6 @@ pub struct KeccakRequestObject {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ZkrRequestObject {
-    pub claim_digest: [u8; 32],
-
-    pub control_id: [u8; 32],
-    
-    pub input: Vec<u8>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AssumptionDetails {    
     pub batch: Vec<(u128, InputBlob)>,
 }

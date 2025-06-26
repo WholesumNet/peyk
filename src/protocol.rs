@@ -1,46 +1,61 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ProveAndLiftDetails {    
-    // a typical segment cid: bafybeiccjcinml5w2meuhcnzu7gwlbkioy2dtyskulrspxoys6gikrrzae/segment-0
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum NeedKind {
+    // need proving is an umbrella term for segment, join, keccak, and zkr proving
+    Prove(u32),
 
-    // all segments are in a directory pointed to by the base cid
-    pub segments_base_cid: String,
-
-    // "segment-" in the ^ example 
-    pub segment_prefix_str: String,
-
-    // po2 limit of the segment, e.g. 19 requires 4gb memory to prove
-    pub po2: u8,
-
-    // number of segments, used by provers to access any segment(0 to num_segments - 1)
-    pub num_segments: u32,
-
-    // hints for provers to know what segments to prove
-    // the Nth bit is 1 => segment-N is already proved
-    pub progress_map: Vec<u8>
+    Groth16(u32),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct JoinDetails {
-    pub pairs: Vec<(String, String)>,
+pub struct KeccakRequestObject {
+    pub claim_digest: [u8; 32],
 
-    // hints for provers to know what pairs to join
-    // the Nth bit is 1 => pair-N is already proved
-    pub progress_map: Vec<u8>,
+    pub po2: usize,
+
+    pub control_root: [u8; 32],
+    
+    // KeccakState in risc0
+    pub input: Vec<[u64; 25]>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AssumptionDetails {    
+    pub batch: Vec<(u128, InputBlob)>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum InputBlob {
+    Blob(Vec<u8>),
+
+    // blob is not available, params: hash, owner
+    Token(u128, Vec<u8>)
+}
+
+// prove, lift, and join is repreented by this type where input
+// is a list of blobs and output is a single proof
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AggregateDetails { 
+    // batch id
+    pub id: u128,
+
+    // if the batch is filled with segments
+    pub blobs_are_segment: bool,
+
+    pub batch: Vec<InputBlob>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Groth16Details {
-    // stark proof's cid
-    pub cid: String    
+    pub batch: Vec<(u128, InputBlob)>
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum JobType {
-    ProveAndLift(ProveAndLiftDetails),
-    
-    Join(JoinDetails),
+pub enum JobKind {
+    Assumption(AssumptionDetails),
+
+    Aggregate(AggregateDetails),
 
     Groth16(Groth16Details),
 }
@@ -49,51 +64,50 @@ pub enum JobType {
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ComputeJob {    
     // network-wide id of the job
-    pub job_id: String,
+    pub id: u128,
 
     // whether it's prove, join, or groth16
-    pub job_type: JobType,
-
-    pub budget: u32
+    pub kind: JobKind,
 }
 
-#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub enum Need {
-    // need compute resources
-    Compute(ComputeJob),
-
-    // update me on my job's status
-    // param: job_id
-    UpdateMe(String),
-}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ProofType {
-    // param: segment id
-    ProveAndLift(u32),
+pub enum ProofKind {
+    Assumption(u128, Vec<u8>),
 
-    // param: left & right proof cids
-    Join(String, String),
+    // params: batch id
+    Aggregate(u128),
 
-    Groth16
+    // params: batch id, blob
+    Groth16(u128, Vec<u8>)
 }
 
+// proofs in custody of prover
+// being large in size ~200-300kb, so provers hold them until the client requests their transfer
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Proof {
-    pub job_id: String,
+pub struct ProofToken {
+    pub job_id: u128,
 
-    pub proof_type: ProofType,
+    pub kind: ProofKind,
 
-    pub cid: String
+    // hash of the proof blob
+    pub hash: u128,
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Request {
-    // job's status has been updated
-    ProofIsReady(Vec<Proof>),
+    WouldProve,
+
+    ProofIsReady(ProofToken),
+
+    // general blob transfer request, <hash of blob>
+    TransferBlob(u128)
 }
 
+// clients respond to requests
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Response {
-    Unknown, 
+    Job(ComputeJob),
+
+    BlobIsReady(Vec<u8>) 
 }

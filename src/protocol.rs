@@ -21,8 +21,14 @@ pub struct KeccakRequestObject {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AssumptionDetails {    
-    pub batch: Vec<(u128, InputBlob)>,
+pub struct AssumptionDetails {
+    // batch id
+    pub id: u128,    
+
+    // if the batch is filled with keccak assumptions
+    pub blobs_are_keccak: bool,
+
+    pub batch: Vec<InputBlob>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -73,7 +79,7 @@ pub struct ComputeJob {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ProofKind {
-    Assumption(u128, Vec<u8>),
+    Assumption(u128),
 
     // params: batch id
     Aggregate(u128),

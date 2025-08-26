@@ -59,11 +59,27 @@ pub struct Groth16Details {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum JobKind {
+    R0(R0Op),
+
+    SP1(SP1Op)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum R0Op {    
     Assumption(AssumptionDetails),
 
     Aggregate(AggregateDetails),
 
     Groth16(Groth16Details),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SP1Op {
+    Execute,
+
+    Shard,
+
+    Join
 }
 
 // used by clients when gossiping about compute needs
@@ -72,10 +88,8 @@ pub struct ComputeJob {
     // network-wide id of the job
     pub id: u128,
 
-    // whether it's prove, join, or groth16
     pub kind: JobKind,
 }
-
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ProofKind {
@@ -88,8 +102,8 @@ pub enum ProofKind {
     Groth16(u128, Vec<u8>)
 }
 
-// proofs in custody of prover
-// being large in size ~200-300kb, so provers hold them until the client requests their transfer
+// proofs in custody of the prover
+// being large in size ~200-300kb, so the prover holds them until the client requests their transfer
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProofToken {
     pub job_id: u128,

@@ -2,7 +2,10 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum NeedKind {
-    // need proving is an umbrella term for segment, join, keccak, and zkr proving
+    // need to execute an elf
+    Execute(u32),
+
+    // an umbrella term for various proving needs: prove, 2->1 agg, ...
     Prove(u32),
 
     Groth16(u32),
@@ -75,11 +78,25 @@ pub enum R0Op {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SP1Op {
-    Execute,
+    Execute(ExecuteDetails),
+}
 
-    Shard,
+// is a list of blobs and output is a single proof
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ExecuteDetails { 
+    // batch id
+    pub id: u128,
 
-    Join
+    pub elf_kind: ELFKind,
+
+    pub batch: Vec<InputBlob>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ELFKind {
+    Subblock,
+
+    Agg
 }
 
 // used by clients when gossiping about compute needs
@@ -116,7 +133,8 @@ pub struct ProofToken {
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Request {
-    WouldProve,
+    // I would
+    Would,
 
     ProofIsReady(ProofToken),
 

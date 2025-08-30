@@ -5,7 +5,6 @@ use std::{
     },
     collections::hash_map::DefaultHasher
 };
-
 use libp2p::{
     gossipsub, identity, identify, mdns, noise, request_response,
     kad, kad::store::MemoryStore,
@@ -21,9 +20,9 @@ use crate::protocol;
 // prepare mdns behaviour
 fn prepare_mdns_behaviour(
     keypair: &identity::Keypair
-) -> anyhow::Result<mdns::async_io::Behaviour> {
+) -> anyhow::Result<mdns::tokio::Behaviour> {
     let local_peer_id = identity::PeerId::from_public_key(&keypair.public());
-    Ok(mdns::async_io::Behaviour::new(
+    Ok(mdns::tokio::Behaviour::new(
         mdns::Config::default(),
         local_peer_id
     )?)
@@ -98,26 +97,26 @@ fn prepare_kademlia_behaviour(
 #[derive(NetworkBehaviour)]
 pub struct MyBehaviour {
     pub identify: identify::Behaviour,
-    pub mdns: mdns::async_io::Behaviour,
+    pub mdns: mdns::tokio::Behaviour,
     pub kademlia: kad::Behaviour<kad::store::MemoryStore>,
     pub gossipsub: gossipsub::Behaviour,
     pub req_resp: request_response::cbor::Behaviour<protocol::Request, protocol::Response>,
 }
 
 // setup a global swram instance
-pub async fn setup_swarm(
+pub fn setup_swarm(
     keypair: &identity::Keypair,
 )-> anyhow::Result<Swarm<MyBehaviour>> {
     let local_keypair = keypair.clone();
     let swarm = SwarmBuilder::with_existing_identity(local_keypair)
-        .with_async_std()
+        .with_tokio()
         .with_tcp(
             tcp::Config::default(),
             noise::Config::new,
             yamux::Config::default
         )?
         .with_quic()
-        .with_dns().await?        
+        .with_dns()?
         .with_behaviour(|key| {            
             let public_key = key.public();
             Ok(MyBehaviour {
@@ -141,19 +140,19 @@ pub struct BootNodeBehaviour {
 }
 
 // setup a bootnode-specific swram instance
-pub async fn setup_swarm_for_bootnode(
+pub fn setup_swarm_for_bootnode(
     keypair: &identity::Keypair,
 )-> anyhow::Result<Swarm<BootNodeBehaviour>> {
     let local_keypair = keypair.clone();
     let swarm = libp2p::SwarmBuilder::with_existing_identity(local_keypair)
-        .with_async_std()
+        .with_tokio()
         .with_tcp(
             tcp::Config::default(),
             noise::Config::new,
             yamux::Config::default
         )?
         .with_quic()
-        .with_dns().await?        
+        .with_dns()?        
         .with_behaviour(|key| {            
             let public_key = key.public();
             Ok(BootNodeBehaviour {

@@ -9,13 +9,14 @@ use libp2p::{
     gossipsub, identity, identify, mdns, noise, request_response,
     kad, kad::store::MemoryStore,
     swarm::{
-        Swarm, NetworkBehaviour, StreamProtocol
+        Swarm, NetworkBehaviour, StreamProtocol,
     },
     SwarmBuilder,
     tcp, yamux, PeerId,
 };
 use anyhow;
 use crate::protocol;
+use crate::blob_transfer;
 
 // prepare mdns behaviour
 fn prepare_mdns_behaviour(
@@ -66,6 +67,19 @@ fn prepare_request_response_behaviour()
     )
 }
 
+// prepare blob-transfer behaviour
+fn prepare_blob_transfer_behaviour()
+-> request_response::cbor::Behaviour<blob_transfer::Request, blob_transfer::Response> 
+{
+    request_response::cbor::Behaviour::<blob_transfer::Request, blob_transfer::Response>::new(
+        [(
+            StreamProtocol::new("/wholesum/blob_transfer/1.0"),
+            request_response::ProtocolSupport::Full,
+        )],
+        request_response::Config::default(),
+    )
+}
+
 // prepare identify behaviour
 fn prepare_identify_behaviour(
     public_key: &identity::PublicKey
@@ -101,6 +115,9 @@ pub struct MyBehaviour {
     pub kademlia: kad::Behaviour<kad::store::MemoryStore>,
     pub gossipsub: gossipsub::Behaviour,
     pub req_resp: request_response::cbor::Behaviour<protocol::Request, protocol::Response>,
+    pub blob_transfer: request_response::cbor::Behaviour<
+        blob_transfer::Request, blob_transfer::Response
+    >,
 }
 
 // setup a global swram instance
@@ -125,6 +142,7 @@ pub fn setup_swarm(
                 kademlia: prepare_kademlia_behaviour(&public_key),
                 gossipsub: prepare_gossipsub_behaviour(&key)?,
                 req_resp: prepare_request_response_behaviour(),
+                blob_transfer: prepare_blob_transfer_behaviour()
             })
         })?
         .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))
@@ -166,3 +184,4 @@ pub fn setup_swarm_for_bootnode(
         .build();
     Ok(swarm)
 }
+

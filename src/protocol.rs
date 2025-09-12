@@ -81,10 +81,8 @@ pub enum SP1Op {
     Execute(ExecuteDetails),
 }
 
-// is a list of blobs and output is a single proof
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExecuteDetails { 
-    // batch id
     pub id: u128,
 
     pub elf_kind: ELFKind,
@@ -110,17 +108,19 @@ pub struct ComputeJob {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ProofKind {
+    // batch id as first param
     Assumption(u128),
 
-    // params: batch id
     Aggregate(u128),
 
-    // params: batch id, blob
-    Groth16(u128, Vec<u8>)
+    Groth16(u128, Vec<u8>),
+
+    SP1ExecuteSubblock(u128),
+    SP1ExecuteAgg(u128),
 }
 
 // proofs in custody of the prover
-// being large in size ~200-300kb, so the prover holds them until the client requests their transfer
+// being large in size >256kb, so the prover holds them until the client requests their transfer
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProofToken {
     pub job_id: u128,

@@ -79,10 +79,21 @@ pub enum R0Op {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SP1Op {
     Execute(ExecuteDetails),
+
+    ProveCompressed(ProveCompressedDetails),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExecuteDetails { 
+    pub id: u128,
+
+    pub elf_kind: ELFKind,
+
+    pub batch: Vec<InputBlob>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProveCompressedDetails { 
     pub id: u128,
 
     pub elf_kind: ELFKind,
@@ -117,6 +128,9 @@ pub enum ProofKind {
 
     SP1ExecuteSubblock(u128),
     SP1ExecuteAgg(u128),
+
+    SP1ProveCompressedSubblock(u128),
+    SP1ProveCompressedAgg(u128)
 }
 
 // proofs in custody of the prover

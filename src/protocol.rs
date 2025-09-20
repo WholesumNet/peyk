@@ -38,7 +38,7 @@ pub struct AssumptionDetails {
 pub enum InputBlob {
     Blob(Vec<u8>),
 
-    // blob is not available, params: hash, owner
+    // blob is not available, params: hash, owner PerrId
     Token(u128, Vec<u8>)
 }
 
@@ -78,19 +78,19 @@ pub enum R0Op {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SP1Op {
-    Execute(ExecuteDetails),
+    // Execute(ExecuteDetails),
 
     ProveCompressed(ProveCompressedDetails),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ExecuteDetails { 
-    pub id: u128,
+// #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+// pub struct ExecuteDetails { 
+//     pub id: u128,
 
-    pub elf_kind: ELFKind,
+//     pub elf_kind: ELFKind,
 
-    pub batch: Vec<InputBlob>,
-}
+//     pub batch: Vec<InputBlob>,
+// }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProveCompressedDetails { 
@@ -126,8 +126,8 @@ pub enum ProofKind {
 
     Groth16(u128, Vec<u8>),
 
-    SP1ExecuteSubblock(u128),
-    SP1ExecuteAgg(u128),
+    // SP1ExecuteSubblock(u128),
+    // SP1ExecuteAgg(u128),
 
     SP1ProveCompressedSubblock(u128),
     SP1ProveCompressedAgg(u128)

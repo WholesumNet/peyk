@@ -74,15 +74,10 @@ pub enum Request {
     Would,
 
     ProofIsReady(ProofToken),
-
-    // general blob transfer request, <hash of blob>
-    TransferBlob(u128)
 }
 
 // clients respond to requests
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Response {
     Job(ComputeJob),
-
-    BlobIsReady(Vec<u8>) 
 }

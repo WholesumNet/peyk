@@ -5,25 +5,25 @@ use std::{
     },
     collections::hash_map::DefaultHasher
 };
-
 use libp2p::{
     gossipsub, identity, identify, mdns, noise, request_response,
     kad, kad::store::MemoryStore,
     swarm::{
-        Swarm, NetworkBehaviour, StreamProtocol
+        Swarm, NetworkBehaviour, StreamProtocol,
     },
     SwarmBuilder,
     tcp, yamux, PeerId,
 };
 use anyhow;
 use crate::protocol;
+use crate::blob_transfer;
 
 // prepare mdns behaviour
 fn prepare_mdns_behaviour(
     keypair: &identity::Keypair
-) -> anyhow::Result<mdns::async_io::Behaviour> {
+) -> anyhow::Result<mdns::tokio::Behaviour> {
     let local_peer_id = identity::PeerId::from_public_key(&keypair.public());
-    Ok(mdns::async_io::Behaviour::new(
+    Ok(mdns::tokio::Behaviour::new(
         mdns::Config::default(),
         local_peer_id
     )?)
@@ -67,6 +67,19 @@ fn prepare_request_response_behaviour()
     )
 }
 
+// prepare blob-transfer behaviour
+fn prepare_blob_transfer_behaviour()
+-> request_response::cbor::Behaviour<blob_transfer::Request, blob_transfer::Response> 
+{
+    request_response::cbor::Behaviour::<blob_transfer::Request, blob_transfer::Response>::new(
+        [(
+            StreamProtocol::new("/wholesum/blob_transfer/1.0"),
+            request_response::ProtocolSupport::Full,
+        )],
+        request_response::Config::default(),
+    )
+}
+
 // prepare identify behaviour
 fn prepare_identify_behaviour(
     public_key: &identity::PublicKey
@@ -98,26 +111,29 @@ fn prepare_kademlia_behaviour(
 #[derive(NetworkBehaviour)]
 pub struct MyBehaviour {
     pub identify: identify::Behaviour,
-    pub mdns: mdns::async_io::Behaviour,
+    pub mdns: mdns::tokio::Behaviour,
     pub kademlia: kad::Behaviour<kad::store::MemoryStore>,
     pub gossipsub: gossipsub::Behaviour,
     pub req_resp: request_response::cbor::Behaviour<protocol::Request, protocol::Response>,
+    pub blob_transfer: request_response::cbor::Behaviour<
+        blob_transfer::Request, blob_transfer::Response
+    >,
 }
 
 // setup a global swram instance
-pub async fn setup_swarm(
+pub fn setup_swarm(
     keypair: &identity::Keypair,
 )-> anyhow::Result<Swarm<MyBehaviour>> {
     let local_keypair = keypair.clone();
     let swarm = SwarmBuilder::with_existing_identity(local_keypair)
-        .with_async_std()
+        .with_tokio()
         .with_tcp(
             tcp::Config::default(),
             noise::Config::new,
             yamux::Config::default
         )?
         .with_quic()
-        .with_dns().await?        
+        .with_dns()?
         .with_behaviour(|key| {            
             let public_key = key.public();
             Ok(MyBehaviour {
@@ -126,6 +142,7 @@ pub async fn setup_swarm(
                 kademlia: prepare_kademlia_behaviour(&public_key),
                 gossipsub: prepare_gossipsub_behaviour(&key)?,
                 req_resp: prepare_request_response_behaviour(),
+                blob_transfer: prepare_blob_transfer_behaviour()
             })
         })?
         .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))
@@ -141,19 +158,19 @@ pub struct BootNodeBehaviour {
 }
 
 // setup a bootnode-specific swram instance
-pub async fn setup_swarm_for_bootnode(
+pub fn setup_swarm_for_bootnode(
     keypair: &identity::Keypair,
 )-> anyhow::Result<Swarm<BootNodeBehaviour>> {
     let local_keypair = keypair.clone();
     let swarm = libp2p::SwarmBuilder::with_existing_identity(local_keypair)
-        .with_async_std()
+        .with_tokio()
         .with_tcp(
             tcp::Config::default(),
             noise::Config::new,
             yamux::Config::default
         )?
         .with_quic()
-        .with_dns().await?        
+        .with_dns()?        
         .with_behaviour(|key| {            
             let public_key = key.public();
             Ok(BootNodeBehaviour {
@@ -167,3 +184,4 @@ pub async fn setup_swarm_for_bootnode(
         .build();
     Ok(swarm)
 }
+

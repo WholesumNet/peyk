@@ -29,7 +29,7 @@ pub struct ProveDetails {
 
     pub elf_kind: ELFKind,
 
-    pub batch: Vec<InputToken>,
+    pub tokens: Vec<InputToken>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

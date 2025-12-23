@@ -11,7 +11,7 @@ async-std = { version = "1.12", features = ["attributes", "unstable"] }
 async-trait = "0.1"
 env_logger = "0.10.0"
 futures = "0.3.28"
-libp2p = { version = "0.53.2", features = ["tokio", "request-response", "cbor", "gossipsub", "mdns", "kad", "dns", "identify", "noise", "quic", "macros", "tcp", "yamux", "serde"] }
+libp2p = { version = "0.56", features = ["tokio", "request-response", "cbor", "gossipsub", "mdns", "kad", "dns", "identify", "noise", "quic", "macros", "tcp", "yamux", "serde"] }
 libp2p-quic = { version = "0.10.2", features = ["tokio"] }
 #libp2p-identify = "0.44.1"
 anyhow = "1.0.86"

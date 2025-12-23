@@ -95,13 +95,10 @@ fn prepare_identify_behaviour(
 fn prepare_kademlia_behaviour(
     public_key: &identity::PublicKey,
 ) -> kad::Behaviour<MemoryStore> {
-    let mut cfg = kad::Config::default();
-    cfg.set_query_timeout(Duration::from_secs(5 * 60));
-    cfg.set_protocol_names(
-        vec![
-            StreamProtocol::new("/wholesum/kad/1.0")                        
-        ]
+    let mut cfg = kad::Config::new(
+        StreamProtocol::new("/wholesum/kad/1.0")
     );
+    cfg.set_query_timeout(Duration::from_secs(5 * 60));    
     let local_peer_id = PeerId::from(public_key.clone());
     let store = MemoryStore::new(local_peer_id);
     kad::Behaviour::with_config(local_peer_id, store, cfg)
@@ -175,9 +172,7 @@ pub fn setup_swarm_for_bootnode(
             let public_key = key.public();
             Ok(BootNodeBehaviour {
                 identify: prepare_identify_behaviour(&public_key),
-                kademlia: prepare_kademlia_behaviour(&public_key),
-                // gossipsub: prepare_gossipsub_behaviour(&key)?,
-                // req_resp: prepare_request_response_behaviour(),
+                kademlia: prepare_kademlia_behaviour(&public_key)
             })
         })?
         .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))

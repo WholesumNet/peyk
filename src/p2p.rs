@@ -1,27 +1,43 @@
 use std::{
     time::Duration,
     hash::{
-        Hash, Hasher
+        Hash,
+        Hasher
     },
     collections::hash_map::DefaultHasher
 };
 use libp2p::{
-    gossipsub, identity, identify, mdns, noise, request_response,
+    core::{        
+        muxing::StreamMuxerBox,
+        transport::Boxed
+    },
+    tcp,
+    yamux,
+    noise,
+    Transport,    
+    gossipsub,
+    identity,
+    identify,
+    mdns,
+    request_response,
     kad, kad::store::MemoryStore,
     swarm::{
-        Swarm, NetworkBehaviour, StreamProtocol,
+        Swarm,
+        NetworkBehaviour,
+        StreamProtocol,
     },
     SwarmBuilder,
-    tcp, yamux, PeerId,
+    PeerId,
 };
-use anyhow;
+use libp2p_quic as quic;
+use anyhow::Result;
 use crate::protocol;
 use crate::blob_transfer;
 
 // prepare mdns behaviour
 fn prepare_mdns_behaviour(
     keypair: &identity::Keypair
-) -> anyhow::Result<mdns::tokio::Behaviour> {
+) -> Result<mdns::tokio::Behaviour> {
     let local_peer_id = identity::PeerId::from_public_key(&keypair.public());
     Ok(mdns::tokio::Behaviour::new(
         mdns::Config::default(),
@@ -32,7 +48,7 @@ fn prepare_mdns_behaviour(
 // prepare gossipsub behaviour
 fn prepare_gossipsub_behaviour(
     keypair: &identity::Keypair,
-)-> anyhow::Result<gossipsub::Behaviour> {
+)-> Result<gossipsub::Behaviour> {
     // content-address messages
     let message_id_fn = |message: &gossipsub::Message| {
         let mut s = DefaultHasher::new();
@@ -69,14 +85,18 @@ fn prepare_request_response_behaviour()
 
 // prepare blob-transfer behaviour
 fn prepare_blob_transfer_behaviour()
--> request_response::cbor::Behaviour<blob_transfer::Request, blob_transfer::Response> 
+-> request_response::Behaviour::<blob_transfer::BlobCodec> 
 {
-    request_response::cbor::Behaviour::<blob_transfer::Request, blob_transfer::Response>::new(
+    request_response::Behaviour::with_codec(
+        blob_transfer::BlobCodec,
         [(
             StreamProtocol::new("/wholesum/blob_transfer/1.0"),
             request_response::ProtocolSupport::Full,
         )],
-        request_response::Config::default(),
+        request_response::Config::default()
+            .with_request_timeout(
+                Duration::from_secs(60)
+            )
     )
 }
 
@@ -112,15 +132,13 @@ pub struct MyBehaviour {
     pub kademlia: kad::Behaviour<kad::store::MemoryStore>,
     pub gossipsub: gossipsub::Behaviour,
     pub req_resp: request_response::cbor::Behaviour<protocol::Request, protocol::Response>,
-    pub blob_transfer: request_response::cbor::Behaviour<
-        blob_transfer::Request, blob_transfer::Response
-    >,
+    pub blob_transfer: request_response::Behaviour<blob_transfer::BlobCodec>,
 }
 
 // setup a global swram instance
 pub fn setup_swarm(
     keypair: &identity::Keypair,
-)-> anyhow::Result<Swarm<MyBehaviour>> {
+)-> Result<Swarm<MyBehaviour>> {
     let local_keypair = keypair.clone();
     let swarm = SwarmBuilder::with_existing_identity(local_keypair)
         .with_tokio()
@@ -157,7 +175,7 @@ pub struct BootNodeBehaviour {
 // setup a bootnode-specific swram instance
 pub fn setup_swarm_for_bootnode(
     keypair: &identity::Keypair,
-)-> anyhow::Result<Swarm<BootNodeBehaviour>> {
+)-> Result<Swarm<BootNodeBehaviour>> {
     let local_keypair = keypair.clone();
     let swarm = libp2p::SwarmBuilder::with_existing_identity(local_keypair)
         .with_tokio()
@@ -180,3 +198,27 @@ pub fn setup_swarm_for_bootnode(
     Ok(swarm)
 }
 
+pub fn prepare_quic_transport(
+    keypair: &identity::Keypair
+) -> Result<Boxed<(PeerId, StreamMuxerBox)>> {    
+    // 1. Create QUIC Config
+    let mut quic_config = quic::Config::new(keypair);
+
+    // 2. Tune for 4G / Large Transfers (Optional but recommended)
+    // Quinn (the underlying engine) defaults are usually good, but we can 
+    // ensure the handshake doesn't timeout on high-latency links.
+    quic_config.handshake_timeout = std::time::Duration::from_secs(20);
+
+    // 3. Build the Transport
+    // "quic::tokio::Transport" handles the UDP socket internally.
+    let transport = quic::tokio::Transport::new(quic_config);
+
+    // 4. Map to Standard Libp2p Types
+    // We map the error to a generic IO error to satisfy the Boxed trait constraints
+    let transport = transport
+        .map(|(peer_id, muxer), _| (peer_id, StreamMuxerBox::new(muxer)))
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+        .boxed();
+
+    Ok(transport)
+}

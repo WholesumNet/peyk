@@ -17,3 +17,4 @@ libp2p-quic = { version = "0.13", features = ["tokio"] }
 #libp2p-identify = "0.44.1"
 anyhow = "1.0.86"
 tokio = "1.45.1"
+indicatif = { version = "0.18", features = ["tokio"] }

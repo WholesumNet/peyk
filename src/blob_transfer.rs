@@ -1,6 +1,6 @@
 use std::{
     io,
-    time::Instant
+    // time::Instant
 };
 use futures::{
     AsyncRead,
@@ -13,7 +13,11 @@ use libp2p::{
     StreamProtocol,
     request_response::Codec
 };
-use log::info;
+// use log::info;
+use indicatif::{
+    ProgressBar,
+    ProgressStyle
+};
 
 #[derive(Debug, Clone)]
 pub struct BlobCodec;
@@ -63,48 +67,35 @@ impl Codec for BlobCodec {
     where
         T: AsyncRead + Unpin + Send,
     {
-        info!("--> Starting download stream...");
-        const ONE_MB: f64 = 1_048_576.0;
+        // 1: read the length header
+        let mut len_buf = [0u8; 4];
+        io.read_exact(&mut len_buf).await?;
+        let total_size = u32::from_be_bytes(len_buf);                
         
-        let mut buffer = Vec::with_capacity(30 * (1<<20)); 
+        let mut buffer = Vec::with_capacity(total_size as usize); 
+        
+        // setup the progress bar
+        let pb = ProgressBar::new(total_size as u64);
+        pb.set_style(ProgressStyle::default_bar()
+            // .template("[{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({percent}%)")
+            .template("{msg}\n{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta}")
+            .unwrap()
+            .progress_chars("#>-")
+        );
+        pb.set_message(format!("Pulling blob"));
         
         // A temporary buffer for "chunks" off the wire
-        let mut fragment = [0u8; 64 * 1024]; // 64KB reads
-        let mut total_bytes = 0;
-        let start_time = Instant::now();
-        let mut last_log = Instant::now();
-
+        let mut fragment = [0u8; 1<<16]; // 64KB buffer
         loop {
-            // This reads directly from the Yamux stream
-            let n = io.read(&mut fragment).await?;
-            
+            // read directly from the Yamux stream
+            let n = io.read(&mut fragment).await?;            
             if n == 0 {
                 break; // EOF - Stream finished
-            }
-            
+            }            
             buffer.extend_from_slice(&fragment[..n]);
-            total_bytes += n;
-
-            // Log progress every ~500ms
-            if last_log.elapsed().as_millis() > 500 {
-                let elapsed_total = start_time.elapsed().as_secs_f64();
-                let mb_total = total_bytes as f64 / ONE_MB;
-                let speed_mbps = (total_bytes as f64 * 8.0) / (elapsed_total * 1_000_000.0);
-                
-                info!(
-                    "    Downloading blob: {:.2} MB received | Avg Speed: {:.2} Mbps",
-                    mb_total, speed_mbps
-                );
-                last_log = Instant::now();
-            }
+            pb.inc(n as u64);
         }
-
-        let total_time = start_time.elapsed();
-        info!(
-            "--> Download is finished! {:.2}MB in {:.2}s",
-            total_bytes as f64 / ONE_MB, 
-            total_time.as_secs_f64(),
-        );
+        pb.finish_with_message(format!("Blob is ready."));
         
         Ok(Response(buffer))
     }
@@ -118,8 +109,12 @@ impl Codec for BlobCodec {
     where
         T: AsyncWrite + Unpin + Send,
     {
-        // Write the entire buffer. 
-        // Yamux handles breaking this into frames internally.
+        // 1: send blob's length(4 bytes)
+        let len = res.0.len() as u32;
+        io.write_all(&len.to_be_bytes()).await?;
+
+        // 2: write the entire buffer
+        // Yamux handles breaking this into frames internally
         io.write_all(&res.0).await?;
         io.close().await?; // Close is essential to trigger EOF on receiver
         Ok(())

@@ -142,11 +142,11 @@ pub fn setup_swarm(
     let local_keypair = keypair.clone();
     let swarm = SwarmBuilder::with_existing_identity(local_keypair)
         .with_tokio()
-        // .with_tcp(
-        //     tcp::Config::default(),
-        //     noise::Config::new,
-        //     yamux::Config::default
-        // )?
+        .with_tcp(
+            tcp::Config::default(),
+            noise::Config::new,
+            yamux::Config::default
+        )?
         .with_quic()
         .with_dns()?
         .with_behaviour(|key| {            

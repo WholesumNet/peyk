@@ -10,9 +10,11 @@ serde = {version = "1.0", features = ["derive"]}
 async-std = { version = "1.12", features = ["attributes", "unstable"] }
 async-trait = "0.1"
 env_logger = "0.10.0"
+log = "0.4.25"
 futures = "0.3.28"
 libp2p = { version = "0.56", features = ["tokio", "request-response", "cbor", "gossipsub", "mdns", "kad", "dns", "identify", "noise", "quic", "macros", "tcp", "yamux", "serde"] }
-libp2p-quic = { version = "0.10.2", features = ["tokio"] }
+libp2p-quic = { version = "0.13", features = ["tokio"] }
 #libp2p-identify = "0.44.1"
 anyhow = "1.0.86"
 tokio = "1.45.1"
+indicatif = { version = "0.18", features = ["tokio"] }

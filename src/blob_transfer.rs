@@ -1,6 +1,5 @@
 use std::{
     io,
-    // time::Instant
 };
 use futures::{
     AsyncRead,
@@ -14,10 +13,7 @@ use libp2p::{
     request_response::Codec
 };
 // use log::info;
-use indicatif::{
-    ProgressBar,
-    ProgressStyle
-};
+use crate::multi_progress_bar;
 
 #[derive(Debug, Clone)]
 pub struct BlobCodec;
@@ -75,14 +71,7 @@ impl Codec for BlobCodec {
         let mut buffer = Vec::with_capacity(total_size as usize); 
         
         // setup the progress bar
-        let pb = ProgressBar::new(total_size as u64);
-        pb.set_style(ProgressStyle::default_bar()
-            // .template("[{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({percent}%)")
-            .template("{msg}\n{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta}")
-            .unwrap()
-            .progress_chars("#>-")
-        );
-        pb.set_message(format!("Pulling blob"));
+        let pb = multi_progress_bar::new(total_size as u64);
         
         // A temporary buffer for "chunks" off the wire
         let mut fragment = [0u8; 1<<16]; // 64KB buffer
@@ -95,7 +84,7 @@ impl Codec for BlobCodec {
             buffer.extend_from_slice(&fragment[..n]);
             pb.inc(n as u64);
         }
-        pb.finish_with_message(format!("Blob is ready."));
+        pb.finish_and_clear();
         
         Ok(Response(buffer))
     }

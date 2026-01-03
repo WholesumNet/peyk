@@ -100,6 +100,41 @@ pub(crate) fn prepare_identify_behaviour(
     )
 }
 
+fn prepare_quic_transport(
+    keypair: &identity::Keypair
+) -> Result<Boxed<(PeerId, StreamMuxerBox)>> {    
+    // 1. Create QUIC Config
+    let mut quic_config = quic::Config::new(keypair);
+
+    // 2. Tune for 4G / Large Transfers (Optional but recommended)
+    // Quinn (the underlying engine) defaults are usually good, but we can 
+    // ensure the handshake doesn't timeout on high-latency links.
+    quic_config.handshake_timeout = std::time::Duration::from_secs(20);
+
+    // 3. Build the Transport
+    // "quic::tokio::Transport" handles the UDP socket internally.
+    let transport = quic::tokio::Transport::new(quic_config);
+
+    // 4. Map to Standard Libp2p Types
+    // We map the error to a generic IO error to satisfy the Boxed trait constraints
+    let transport = transport
+        .map(|(peer_id, muxer), _| (peer_id, StreamMuxerBox::new(muxer)))
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+        .boxed();
+
+    Ok(transport)
+}
+
+// main network behaviour 
+#[derive(NetworkBehaviour)]
+pub struct GlobalBehaviour {
+    pub identify: identify::Behaviour,
+    pub kademlia: kad::Behaviour<kad::store::MemoryStore>,
+    pub gossipsub: gossipsub::Behaviour,
+    pub req_resp: request_response::cbor::Behaviour<protocol::Request, protocol::Response>,
+    pub blob_transfer: request_response::Behaviour<blob_transfer::BlobCodec>,
+}
+
 pub(crate) fn prepare_kademlia_behaviour(
     public_key: &identity::PublicKey,
 ) -> kad::Behaviour<MemoryStore> {
@@ -112,20 +147,10 @@ pub(crate) fn prepare_kademlia_behaviour(
     kad::Behaviour::with_config(local_peer_id, store, cfg)
 }
 
-// main network behaviour 
-#[derive(NetworkBehaviour)]
-pub struct MyBehaviour {
-    pub identify: identify::Behaviour,
-    pub kademlia: kad::Behaviour<kad::store::MemoryStore>,
-    pub gossipsub: gossipsub::Behaviour,
-    pub req_resp: request_response::cbor::Behaviour<protocol::Request, protocol::Response>,
-    pub blob_transfer: request_response::Behaviour<blob_transfer::BlobCodec>,
-}
-
 // setup a global swram instance
-pub fn setup_swarm(
+pub fn setup_global_swarm(
     keypair: &identity::Keypair,
-)-> Result<Swarm<MyBehaviour>> {
+)-> Result<Swarm<GlobalBehaviour>> {
     let local_keypair = keypair.clone();
     let swarm = SwarmBuilder::with_existing_identity(local_keypair)
         .with_tokio()
@@ -149,30 +174,4 @@ pub fn setup_swarm(
         .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))
         .build();
     Ok(swarm)
-}
-
-
-pub fn prepare_quic_transport(
-    keypair: &identity::Keypair
-) -> Result<Boxed<(PeerId, StreamMuxerBox)>> {    
-    // 1. Create QUIC Config
-    let mut quic_config = quic::Config::new(keypair);
-
-    // 2. Tune for 4G / Large Transfers (Optional but recommended)
-    // Quinn (the underlying engine) defaults are usually good, but we can 
-    // ensure the handshake doesn't timeout on high-latency links.
-    quic_config.handshake_timeout = std::time::Duration::from_secs(20);
-
-    // 3. Build the Transport
-    // "quic::tokio::Transport" handles the UDP socket internally.
-    let transport = quic::tokio::Transport::new(quic_config);
-
-    // 4. Map to Standard Libp2p Types
-    // We map the error to a generic IO error to satisfy the Boxed trait constraints
-    let transport = transport
-        .map(|(peer_id, muxer), _| (peer_id, StreamMuxerBox::new(muxer)))
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
-        .boxed();
-
-    Ok(transport)
 }

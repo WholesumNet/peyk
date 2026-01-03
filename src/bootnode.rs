@@ -13,7 +13,7 @@ use libp2p::{
         NetworkBehaviour,
     },
 };
-use crate::p2p;
+use crate::global;
 
 // used by bootnodes for peer discovery
 #[derive(NetworkBehaviour)]
@@ -39,8 +39,8 @@ pub fn setup_swarm_for_bootnode(
         .with_behaviour(|key| {            
             let public_key = key.public();
             Ok(BootNodeBehaviour {
-                identify: p2p::prepare_identify_behaviour(&public_key),
-                kademlia: p2p::prepare_kademlia_behaviour(&public_key)
+                identify: global::prepare_identify_behaviour(&public_key),
+                kademlia: global::prepare_kademlia_behaviour(&public_key)
             })
         })?
         .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))

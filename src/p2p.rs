@@ -100,7 +100,7 @@ pub(crate) fn prepare_identify_behaviour(
     )
 }
 
-fn prepare_quic_transport(
+fn _prepare_quic_transport(
     keypair: &identity::Keypair
 ) -> Result<Boxed<(PeerId, StreamMuxerBox)>> {    
     // 1. Create QUIC Config

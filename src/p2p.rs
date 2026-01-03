@@ -89,7 +89,7 @@ fn prepare_blob_transfer_behaviour()
 }
 
 // prepare identify behaviour
-fn prepare_identify_behaviour(
+pub(crate) fn prepare_identify_behaviour(
     public_key: &identity::PublicKey
 )-> identify::Behaviour {
     identify::Behaviour::new(
@@ -100,7 +100,7 @@ fn prepare_identify_behaviour(
     )
 }
 
-fn prepare_kademlia_behaviour(
+pub(crate) fn prepare_kademlia_behaviour(
     public_key: &identity::PublicKey,
 ) -> kad::Behaviour<MemoryStore> {
     let mut cfg = kad::Config::new(
@@ -151,38 +151,6 @@ pub fn setup_swarm(
     Ok(swarm)
 }
 
-// used by bootnodes for peer discovery
-#[derive(NetworkBehaviour)]
-pub struct BootNodeBehaviour {
-    pub identify: identify::Behaviour,
-    pub kademlia: kad::Behaviour<kad::store::MemoryStore>,
-}
-
-// setup a bootnode-specific swram instance
-pub fn setup_swarm_for_bootnode(
-    keypair: &identity::Keypair,
-)-> Result<Swarm<BootNodeBehaviour>> {
-    let local_keypair = keypair.clone();
-    let swarm = libp2p::SwarmBuilder::with_existing_identity(local_keypair)
-        .with_tokio()
-        .with_tcp(
-            tcp::Config::default(),
-            noise::Config::new,
-            yamux::Config::default
-        )?
-        .with_quic()
-        .with_dns()?        
-        .with_behaviour(|key| {            
-            let public_key = key.public();
-            Ok(BootNodeBehaviour {
-                identify: prepare_identify_behaviour(&public_key),
-                kademlia: prepare_kademlia_behaviour(&public_key)
-            })
-        })?
-        .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))
-        .build();
-    Ok(swarm)
-}
 
 pub fn prepare_quic_transport(
     keypair: &identity::Keypair

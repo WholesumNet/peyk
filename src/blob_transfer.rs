@@ -1,5 +1,6 @@
 use std::{
     io,
+    sync::OnceLock
 };
 use futures::{
     AsyncRead,
@@ -12,8 +13,28 @@ use libp2p::{
     StreamProtocol,
     request_response::Codec
 };
-// use log::info;
-use crate::multi_progress_bar;
+
+use indicatif::{
+    MultiProgress,
+    ProgressBar,
+    ProgressStyle
+};
+
+static PROGRESS_MANAGER: OnceLock<MultiProgress> = OnceLock::new();
+
+pub fn new_progress_bar(size: u64) -> ProgressBar {
+    let pb = PROGRESS_MANAGER
+        .get_or_init(MultiProgress::new)
+        .add(ProgressBar::new(size));   
+    
+    pb.set_style(ProgressStyle::default_bar()
+        .template("{msg}\n{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta}")
+        .unwrap()
+        .progress_chars("#>-")
+    );    
+    pb.set_prefix(String::from("Pulling"));
+    pb
+}
 
 #[derive(Debug, Clone)]
 pub struct BlobCodec;
@@ -71,7 +92,7 @@ impl Codec for BlobCodec {
         let mut buffer = Vec::with_capacity(total_size as usize); 
         
         // setup the progress bar
-        let pb = multi_progress_bar::new(total_size as u64);
+        let pb = new_progress_bar(total_size as u64);
         
         // A temporary buffer for "chunks" off the wire
         let mut fragment = [0u8; 1<<16]; // 64KB buffer

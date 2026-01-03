@@ -163,7 +163,7 @@ pub fn setup_global_swarm(
         .with_dns()?
         .with_behaviour(|key| {            
             let public_key = key.public();
-            Ok(MyBehaviour {
+            Ok(GlobalBehaviour {
                 identify: prepare_identify_behaviour(&public_key),
                 kademlia: prepare_kademlia_behaviour(&public_key),
                 gossipsub: prepare_gossipsub_behaviour(&key)?,

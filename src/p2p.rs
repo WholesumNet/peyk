@@ -18,7 +18,6 @@ use libp2p::{
     gossipsub,
     identity,
     identify,
-    mdns,
     request_response,
     kad, kad::store::MemoryStore,
     swarm::{
@@ -33,17 +32,6 @@ use libp2p_quic as quic;
 use anyhow::Result;
 use crate::protocol;
 use crate::blob_transfer;
-
-// prepare mdns behaviour
-fn prepare_mdns_behaviour(
-    keypair: &identity::Keypair
-) -> Result<mdns::tokio::Behaviour> {
-    let local_peer_id = identity::PeerId::from_public_key(&keypair.public());
-    Ok(mdns::tokio::Behaviour::new(
-        mdns::Config::default(),
-        local_peer_id
-    )?)
-}
 
 // prepare gossipsub behaviour
 fn prepare_gossipsub_behaviour(
@@ -128,7 +116,6 @@ fn prepare_kademlia_behaviour(
 #[derive(NetworkBehaviour)]
 pub struct MyBehaviour {
     pub identify: identify::Behaviour,
-    pub mdns: mdns::tokio::Behaviour,
     pub kademlia: kad::Behaviour<kad::store::MemoryStore>,
     pub gossipsub: gossipsub::Behaviour,
     pub req_resp: request_response::cbor::Behaviour<protocol::Request, protocol::Response>,
@@ -153,7 +140,6 @@ pub fn setup_swarm(
             let public_key = key.public();
             Ok(MyBehaviour {
                 identify: prepare_identify_behaviour(&public_key),
-                mdns: prepare_mdns_behaviour(&key)?,
                 kademlia: prepare_kademlia_behaviour(&public_key),
                 gossipsub: prepare_gossipsub_behaviour(&key)?,
                 req_resp: prepare_request_response_behaviour(),

@@ -103,26 +103,12 @@ pub(crate) fn prepare_identify_behaviour(
 fn _prepare_quic_transport(
     keypair: &identity::Keypair
 ) -> Result<Boxed<(PeerId, StreamMuxerBox)>> {    
-    // 1. Create QUIC Config
-    let mut quic_config = quic::Config::new(keypair);
-
-    // 2. Tune for 4G / Large Transfers (Optional but recommended)
-    // Quinn (the underlying engine) defaults are usually good, but we can 
-    // ensure the handshake doesn't timeout on high-latency links.
-    quic_config.handshake_timeout = std::time::Duration::from_secs(20);
-
-    // 3. Build the Transport
-    // "quic::tokio::Transport" handles the UDP socket internally.
-    let transport = quic::tokio::Transport::new(quic_config);
-
-    // 4. Map to Standard Libp2p Types
-    // We map the error to a generic IO error to satisfy the Boxed trait constraints
-    let transport = transport
-        .map(|(peer_id, muxer), _| (peer_id, StreamMuxerBox::new(muxer)))
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
-        .boxed();
-
-    Ok(transport)
+    Ok(
+        quic::tokio::Transport::new(quic::Config::new(keypair))
+            .map(|(peer_id, muxer), _| (peer_id, StreamMuxerBox::new(muxer)))
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+            .boxed()
+    )
 }
 
 // main network behaviour 

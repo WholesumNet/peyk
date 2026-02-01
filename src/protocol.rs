@@ -1,10 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub enum NeedKind {
-    // an umbrella term for various proving needs
-    Prove(u32),
-}
+pub struct WouldProve(pub u8);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct InputToken {
@@ -69,15 +66,16 @@ pub struct ProofToken {
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Request {
-    // I would
-    Would,
+pub enum Request {        
+    Job(ComputeJob),
 
     ProofIsReady(ProofToken),
 }
 
-// clients respond to requests
+// the client responds to requests
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Response {
-    Job(ComputeJob),
+    Accept,
+
+    Reject,
 }
